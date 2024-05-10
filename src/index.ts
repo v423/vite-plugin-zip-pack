@@ -33,23 +33,37 @@ export interface Options {
    * err is only defined if the save function fails
    */
   done?: (err: Error | undefined) => void
-   /**
-   * Filter function equivalent to Array.prototype.filter 
-   * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
-   * is executed for every files and directories
-   * files and directories are only included when return ist true.
-   * All files are included when function is not defined
+  /**
+   * update filename in configResolved
    */
+  updateOutFileName?: (options: Object) => string | undefined;
+  /**
+  /**
+   * check if file/env is valid for compression
+   * such as only compress in SSR
+   */
+  validCompress?: (options: Object) => boolean;
+  /**
+  * Filter function equivalent to Array.prototype.filter 
+  * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
+  * is executed for every files and directories
+  * files and directories are only included when return ist true.
+  * All files are included when function is not defined
+  */
   filter?: (fileName: string, filePath: string, isDirectory: boolean) => Boolean
 }
 
 export default function zipPack(options?: Options): PluginOption {
   const inDir = options?.inDir || "dist";
   const outDir = options?.outDir || "dist-zip";
-  const outFileName = options?.outFileName || "dist.zip";
+  let outFileName = options?.outFileName || "dist.zip";
   const pathPrefix = options?.pathPrefix || '';
-  const done = options?.done || function (){};
-  const filter = options?.filter || (() => true );
+  const done = options?.done || function () { };
+  const filter = options?.filter || (() => true);
+  const updateOutFileName: Function = (options === null || options === void 0 ? void 0 : options.updateOutFileName) || function () { };
+  const validCompress: Function = (options === null || options === void 0 ? void 0 : options.validCompress) || function () { return true };
+  let viteConfig: Object;
+
 
   async function addFilesToZipArchive(zip: JSZip, inDir: string) {
     const listOfFiles = await fs.promises.readdir(inDir);
@@ -60,7 +74,7 @@ export default function zipPack(options?: Options): PluginOption {
       const timeZoneOffsetDate = timeZoneOffset(new Date(file.mtime));
 
       if (file.isDirectory()) {
-        if(!filter(fileName, filePath, true)) {
+        if (!filter(fileName, filePath, true)) {
           continue;
         }
         zip.file(fileName, null, {
@@ -68,16 +82,16 @@ export default function zipPack(options?: Options): PluginOption {
           date: timeZoneOffsetDate
         });
         const dir = zip.folder(fileName);
-        if(!dir) {
+        if (!dir) {
           throw new Error(`fileName '${fileName}' couldn't get included als directory in the zip`);
         }
 
         await addFilesToZipArchive(dir, filePath);
       } else {
-        if(filter(fileName, filePath, false)) {
-          zip.file( 
-            fileName, 
-            await fs.promises.readFile(filePath), 
+        if (filter(fileName, filePath, false)) {
+          zip.file(
+            fileName,
+            await fs.promises.readFile(filePath),
             { date: timeZoneOffsetDate }
           );
         }
@@ -97,7 +111,7 @@ export default function zipPack(options?: Options): PluginOption {
           level: 9,
         },
       })
-      
+
     const fileName = path.join(outDir, outFileName);
 
     if (fs.existsSync(fileName)) {
@@ -109,12 +123,25 @@ export default function zipPack(options?: Options): PluginOption {
   }
 
   return {
-    name: "vite-plugin-zip-pack",
+    name: "vite-plugin-zip-pack-svelte",
     apply: "build",
     enforce: "post",
+    async configResolved(resolvedConfig: Object) {
+      viteConfig = resolvedConfig;
+      try {
+        outFileName = updateOutFileName(resolvedConfig) || outFileName;
+
+      } catch (err) {
+        throw new Error('update OutFileName failed',)
+      }
+    },
     closeBundle: {
       sequential: true,
       async handler() {
+        if (!validCompress(viteConfig)) {
+
+          done(undefined);
+        }
         try {
           console.log("\x1b[36m%s\x1b[0m", `Zip packing - "${inDir}" folder :`);
 
@@ -142,7 +169,7 @@ export default function zipPack(options?: Options): PluginOption {
             });
             const zipFolder = zip.folder(pathPrefix);
 
-            if(!zipFolder)
+            if (!zipFolder)
               throw new Error("Files could not be loaded from 'pathPrefix'")
 
             archive = zipFolder!
@@ -153,21 +180,21 @@ export default function zipPack(options?: Options): PluginOption {
           console.log("\x1b[32m%s\x1b[0m", "  - Preparing files.");
           await addFilesToZipArchive(archive, inDir);
 
-          console.log("\x1b[32m%s\x1b[0m", "  - Creating zip archive.");
+          console.log("\x1b[32m%s\x1b[0m", "  - Creating zip archive [" + outFileName + "].");
           await createZipArchive(archive)
 
           console.log("\x1b[32m%s\x1b[0m", "  - Done.");
         } catch (error: any) {
           if (error) {
             console.log(
-                "\x1b[31m%s\x1b[0m",
-                `  - ${error}`
+              "\x1b[31m%s\x1b[0m",
+              `  - ${error}`
             );
           }
 
           console.log(
-              "\x1b[31m%s\x1b[0m",
-              "  - Something went wrong while building zip file!"
+            "\x1b[31m%s\x1b[0m",
+            "  - Something went wrong while building zip file!"
           );
           done(error)
         }

@@ -1,7 +1,7 @@
 {
-  "name": "vite-plugin-zip-pack",
+  "name": "vite-plugin-zip-pack-svelte",
   "description": "Vite plugin for packing distribution/build folder into a zip file.",
-  "version": "1.2.3",
+  "version": "0.0.1",
   "main": "dist/cjs/index.js",
   "module": "dist/esm/index.mjs",
   "types": "dist/types/index.d.ts",
@@ -15,7 +15,8 @@
   },
   "author": "Darko Ceranac (https://github.com/7th-Cyborg)",
   "contributors": [
-    "Reiner Bamberger (https://github.com/reinerBa/)"
+    "Reiner Bamberger (https://github.com/reinerBa/)",
+    "Code423"
   ],
   "license": "MIT",
   "files": [
@@ -34,14 +35,6 @@
     "bundler",
     "compressing"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/7th-Cyborg/vite-plugin-zip-pack"
-  },
-  "bugs": {
-    "url": "https://github.com/7th-Cyborg/vite-plugin-zip-pack/issues"
-  },
-  "homepage": "https://github.com/7th-Cyborg/vite-plugin-zip-pack#readme",
   "scripts": {
     "build": "tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && npm run renameESM",
     "renameESM": "node -e \"require('fs').rename('dist/esm/index.js', 'dist/esm/index.mjs', function(err) { if (err) console.log(err); console.log('Build successful!') })\"",
